@@ -210,25 +210,6 @@ dify-analyzer/
 
 ---
 
-## 与其他 Skill 的关系
-
-```
-Dify 生态 Skill 协作：
-
-诊断          建设
-  │            │
-  ▼            ▼
-dify-analyzer  dify-workflow-writer（修改 DSL）
-     │         dify-workflow-builder（生成 DSL）
-     │         dify-tool-developer（开发插件）
-     │
-     └── 诊断完成后：
-         - 能力范围内 → 直接修复
-         - 超出能力 → 提示用户调用其他 Skill（/skill-name）
-```
-
----
-
 ## 核心原则
 
 1. **诚实原则**：有证据才下结论，绝不瞎编
