@@ -227,7 +227,7 @@ dify-analyzer/
 
 ## 优化记录
 
-本 skill 使用 [darwin-skill](https://github.com/your-username/darwin-skill) 进行系统性评估和优化。详细记录见 `.darwin/RESULT_CARD.md`。
+本 skill 使用 [darwin-skill](https://github.com/your-username/darwin-skill) 进行系统性评估和优化。
 
 > **诚实边界**：本 skill 基于 Dify v1.x 和 Qwen3 系列的行为特征设计。如使用新版本，部分诊断建议可能需调整。始终优先参考最新官方文档。
 >
