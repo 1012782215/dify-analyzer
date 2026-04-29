@@ -138,6 +138,8 @@ function checkConstructionNeed(input) {
 
 在执行自动化操作前，检查底层工具（如 skill 加载器、浏览器自动化等）依赖的 Node.js 环境是否正常。
 
+> ⚠️ **强制要求**：Playwright MCP 需要 **Node.js >= 18**，低于此版本将阻断自动化流程（非手动模式）。
+> 
 > 完整检测逻辑（含 5 层检测、版本管理器识别、诊断报告生成）见：
 > **`references/nodejs-env-check.md`**
 
@@ -146,11 +148,40 @@ function checkConstructionNeed(input) {
 - 平台差异：Windows / macOS / Linux
 - 项目声明：.nvmrc / .node-version / package.json engines.node
 
+**版本要求：**
+```javascript
+const MIN_NODE_VERSION = 18;
+
+// L1 检测逻辑（节选）
+const major = parseInt(nodeVersion.replace(/^v/, '').split('.')[0], 10);
+if (major >= MIN_NODE_VERSION) {
+  result.nodeAvailable = true;
+} else {
+  result.errors.push({
+    level: 'L1',
+    msg: `Node.js 版本过低：${nodeVersion}（需要 >= ${MIN_NODE_VERSION}）`,
+    detail: 'Playwright MCP 要求 Node.js 18 或更高版本'
+  });
+}
+```
+
 **触发条件：**
 ```javascript
 const envCheck = checkNodeEnvironment();
 if (!envCheck.nodeAvailable || isToolUnavailable()) {
   const report = generateEnvReport(envCheck);
+  
+  // 版本过低时强制阻断（非手动模式）
+  const versionError = envCheck.errors.find(e => e.msg.includes('版本过低'));
+  if (versionError && !isManualMode) {
+    return { 
+      type: 'nodejs_env_error', 
+      report,
+      blocking: true,  // 阻断后续自动化流程
+      suggestion: '请升级 Node.js 到 18+，或切换到手动模式（复制日志内容分析）'
+    };
+  }
+  
   return { type: 'nodejs_env_error', report };
 }
 ```

@@ -38,10 +38,19 @@ function checkNodeEnvironment() {
     warnings: []
   };
   
-  // L1: 基础 Node.js 检测
+  // L1: 基础 Node.js 检测 + 版本要求（Playwright MCP 需要 >= 18）
   try {
     result.nodeVersion = execSync('node -v', { encoding: 'utf8', timeout: 5000 }).trim();
-    result.nodeAvailable = true;
+    const major = parseInt(result.nodeVersion.replace(/^v/, '').split('.')[0], 10);
+    if (major >= 18) {
+      result.nodeAvailable = true;
+    } else {
+      result.errors.push({
+        level: 'L1',
+        msg: `Node.js 版本过低：${result.nodeVersion}（需要 >= 18）`,
+        detail: 'Playwright MCP 要求 Node.js 18 或更高版本'
+      });
+    }
   } catch (e) {
     result.errors.push({ level: 'L1', msg: 'node 命令不可用', detail: e.message });
   }
@@ -135,6 +144,13 @@ function generateEnvReport(checkResult) {
     lines.push(`❌ Node.js 不可用`);
   }
   
+  // 检查版本过低错误
+  const versionError = checkResult.errors.find(e => e.msg.includes('版本过低'));
+  if (versionError) {
+    lines.push(`❌ ${versionError.msg}`);
+    lines.push(`   说明：${versionError.detail}`);
+  }
+  
   if (checkResult.versionManager) {
     lines.push(`📦 版本管理器：${checkResult.versionManager.name}`);
     lines.push(`   当前版本：${checkResult.versionManager.current}`);
@@ -158,7 +174,23 @@ function generateEnvReport(checkResult) {
     for (const w of checkResult.warnings) lines.push(`   - ${w}`);
   }
   
-  lines.push(`建议操作：检查 Node.js 安装或切换正确版本后重试`);
+  // 针对性建议
+  const hasVersionError = checkResult.errors.some(e => e.msg.includes('版本过低'));
+  if (hasVersionError) {
+    lines.push(`建议操作：`);
+    lines.push(`  1. 升级 Node.js 到 18+（推荐 18.x LTS 或 20.x LTS）`);
+    if (checkResult.versionManager) {
+      lines.push(`  2. 使用版本管理器切换：`);
+      lines.push(`     ${checkResult.versionManager.name} install 18`);
+      lines.push(`     ${checkResult.versionManager.name} use 18`);
+    } else {
+      lines.push(`  2. 访问 https://nodejs.org/ 下载最新 LTS 版本`);
+    }
+    lines.push(`  3. 升级后重新启动终端，验证：node -v`);
+    lines.push(`  4. 如无法升级，请切换到手动模式（复制日志内容分析）`);
+  } else {
+    lines.push(`建议操作：检查 Node.js 安装或切换正确版本后重试`);
+  }
   
   return lines.join('\n');
 }
