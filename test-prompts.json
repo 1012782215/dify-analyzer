@@ -1,0 +1,50 @@
+[
+  {
+    "id": 1,
+    "prompt": "分析这个Dify日志 https://your-dify-instance.com/app/xxx/logs?conversation_id=xxx，外部传入值没数据但与内部对比结果是负数",
+    "expected": "使用数据状态三层分类法诊断，区分无数据(L1)和空数据(L2)，给出修复方案",
+    "type": "边界情况诊断"
+  },
+  {
+    "id": 2,
+    "prompt": "Agent节点没进工具，enable_thinking怎么关？",
+    "expected": "引用agent-tool-troubleshooting.md，给出关闭enable_thinking的具体步骤",
+    "type": "Agent专项诊断"
+  },
+  {
+    "id": 3,
+    "prompt": "看看这个Dify工作流日志，执行很慢",
+    "expected": "分析执行概览，识别耗时节点，给出性能优化建议",
+    "type": "通用日志分析"
+  },
+  {
+    "id": 4,
+    "prompt": "提示词改了三版，空值问题修了但XX场景又出问题了",
+    "expected": "启动提示词版本演进追踪，使用验证四问检查一致性，给出条件化处理方案",
+    "type": "提示词迭代优化"
+  },
+  {
+    "id": 5,
+    "prompt": "数据整和节点输出\"示例数值：\"这样的无意义前缀",
+    "expected": "使用条件化输出设计模式诊断，给出空值过滤修复方案",
+    "type": "提示词边界诊断"
+  },
+  {
+    "id": 6,
+    "prompt": "LLM节点输出JSON，前半截中文键名正常，后半截突然变成key_name",
+    "expected": "切换到JSON结构化输出诊断模式，执行4维漂移检测，给出Prompt约束+代码兜底方案",
+    "type": "JSON键名漂移诊断"
+  },
+  {
+    "id": 7,
+    "prompt": "代码节点JSON.parse报错了，用的是Qwen3，enable_thinking=True",
+    "expected": "识别为Thinking模型输出污染，执行4种空输出类型检测，给出清理方案",
+    "type": "Thinking污染诊断"
+  },
+  {
+    "id": 8,
+    "prompt": "我想把你们skill里的脚本用到生产环境，有什么风险吗？",
+    "expected": "引用Scripts安全使用指南，说明哪些脚本低风险可用，哪些已移除及原因",
+    "type": "Scripts安全评估"
+  }
+]
