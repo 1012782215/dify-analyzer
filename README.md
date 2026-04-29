@@ -12,10 +12,10 @@
 
 ```bash
 # 全局安装（推荐）
-git clone https://github.com/your-username/dify-analyzer.git ~/.config/opencode/skills/dify-analyzer
+git clone https://github.com/1012782215/dify-analyzer.git ~/.config/opencode/skills/dify-analyzer
 
 # 或项目级安装
-git clone https://github.com/your-username/dify-analyzer.git .opencode/skills/dify-analyzer
+git clone https://github.com/1012782215/dify-analyzer.git .opencode/skills/dify-analyzer
 ```
 
 安装完成后，OpenCode 会自动识别并加载本 skill。
