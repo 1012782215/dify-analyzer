@@ -1,4 +1,4 @@
-# Dify Log Analyzer Skill
+﻿# Dify Log Analyzer Skill
 
 > 系统化诊断 Dify 工作流执行问题，支持基于日志的精确诊断和基于描述的经验诊断。
 
@@ -150,6 +150,10 @@ dify-analyzer/
 │   │                                     # 14种常见错误模式（症状/根因/修复）
 │   │                                     # 按症状快速定位流程
 │   │                                     # 修复策略选择指南
+│   ├── code-consistency-troubleshooting.md # 代码节点一致性诊断手册（新增）
+│   │                                     # 当报错变量在代码中不存在时使用
+│   │                                     # 覆盖：缓存未发布、上游节点、作用域、代码修改、运行时异常
+│   │                                     # 配套 SKILL.md Phase 5.1.5 检查点
 │   ├── nodejs-env-check.md               # Node.js 环境可用性检查
 │   │                                     # 5层检测逻辑（L1-L5）
 │   │                                     # 版本管理器识别（nvm/n/fnm/Volta）
