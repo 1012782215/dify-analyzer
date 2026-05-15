@@ -164,6 +164,12 @@ dify-analyzer/
 │                                           # 模板D：提示词边界情况诊断
 │                                           # 模板E：JSON 结构化输出诊断报告
 │                                           # 模板F：Thinking 模型输出污染诊断报告
+├── data/                                   # 结构化配置文件
+│   ├── diagnosis-keywords.json             # 诊断模式触发关键词配置
+│   │                                       # 包含：5种诊断模式关键词 + 建设性需求拦截关键词
+│   └── scoring-config.json                 # 评分标准统一配置
+│                                             # 包含：Agent 6层 / JSON 4维 / Thinking 4种评分
+│                                             # 包含：通过标准阈值 / 等级划分
 ├── scripts/                                # 实用脚本工具（Dify 代码节点用）
 │   ├── think-tag-cleaner.js                # Think 标签清理代码（2种方案：基础/调试）
 │   │                                       # ⚠️ 纯文本处理，无网络访问，低风险

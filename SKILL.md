@@ -92,14 +92,11 @@ const inputType = {
 };
 
 // 建设性需求早期拦截
+// 关键词配置见 data/diagnosis-keywords.json -> construction_intercept
 function checkConstructionNeed(input) {
   const lower = input.toLowerCase();
-  const constructionKeywords = [
-    '创建', '新建', '添加', '删除', '移除', '重建', '重写',
-    'create', 'add', 'delete', 'remove', 'rebuild', 'rewrite',
-    '帮我做一个', '帮我写个', '给我建个'
-  ];
-  return constructionKeywords.some(kw => lower.includes(kw));
+  const keywords = loadKeywordsConfig('construction_intercept');
+  return keywords.some(kw => lower.includes(kw));
 }
 
 // 注意：当用户同时提供多种输入时，按优先级 A > E > B > C > D 处理
@@ -272,37 +269,15 @@ const analysisMode = {
 
 function determineAnalysisType(input) {
   const lower = input.toLowerCase();
+  const config = loadKeywordsConfig('modes');
   
-  // Agent 专项
-  const agentKeywords = [
-    'agent', '工具', '调用', 'function calling',
-    'enable_thinking', '数据处理为空', '没进工具',
-    'tool', 'calling', 'not triggered'
-  ];
-  if (agentKeywords.some(kw => lower.includes(kw))) return 'agent_specialist';
-  
-  // JSON 结构化输出诊断
-  const jsonDriftKeywords = [
-    '键名漂移', '中英文混用', 'platform_name', 'entity_name',
-    'indicator_comparison_details', '字段名不一致', '长输出格式错乱',
-    'json 键名', 'json 格式', '输出格式异常', 'completion_tokens'
-  ];
-  if (jsonDriftKeywords.some(kw => lower.includes(kw))) return 'json_structure_specialist';
-  
-  // Prompt 逻辑诊断
-  const promptLogicKeywords = [
-    '提示词逻辑', '空值处理', '负数输出', '边界情况',
-    '规则矛盾', '示例不一致', '条件分支', '多项目场景'
-  ];
-  if (promptLogicKeywords.some(kw => lower.includes(kw))) return 'prompt_logic_specialist';
-  
-  // Thinking 模型输出污染诊断
-  const thinkingPollutionKeywords = [
-    'enable_thinking', 'thinking', 'reasoning', 'think tag', '<think>', '</think>',
-    'json.parse', 'unexpected end of json', 'syntaxerror', '思考模式',
-    '思考过程', '推理过程', '循环迭代失败', 'loop 失败'
-  ];
-  if (thinkingPollutionKeywords.some(kw => lower.includes(kw))) return 'thinking_pollution_specialist';
+  // 按优先级遍历各诊断模式的关键词（配置见 data/diagnosis-keywords.json）
+  for (const [mode, data] of Object.entries(config)) {
+    if (mode === 'general') continue;
+    if (data.keywords.some(kw => lower.includes(kw))) {
+      return mode;
+    }
+  }
   
   return 'general';
 }
@@ -598,10 +573,15 @@ const totalScore = Object.values(diagnosis).reduce((a, b) => a + b, 0);
 ```
 
 **诊断评分标准：**
-- 90-100分：问题明确，解决方案清晰
-- 70-89分：问题基本明确，需进一步验证
-- 50-69分：问题部分明确，需补充信息
-- <50分：信息不足，需手动验证
+
+评分等级（配置见 `data/scoring-config.json` -> `agent_diagnosis.grade_scale`）：
+
+| 分数段 | 等级 | 说明 |
+|--------|------|------|
+| 90-100 | 优秀 | 问题明确，解决方案清晰 |
+| 70-89 | 良好 | 问题基本明确，需进一步验证 |
+| 50-69 | 一般 | 问题部分明确，需补充信息 |
+| <50 | 不足 | 信息不足，需手动验证 |
 
 ### 2.3 JSON 结构化输出专项分析（模式 C 时触发）
 
@@ -629,12 +609,13 @@ const driftDiagnosis = {
   hierarchy_drift: checkHierarchyDrift(node)     // 层级漂移（嵌套错乱）
 };
 
-// 各维度评分：
+// 各维度评分（配置见 `data/scoring-config.json` -> `json_drift.dimensions`）：
 // - language_drift: 25分（检测到英文键名 → 0分）
 // - semantic_drift: 25分（检测到模型偏好键名 → 0分）
 // - abbreviation_drift: 25分（检测到缩写 → 10分）
 // - hierarchy_drift: 25分（层级偏差>1 → 5分）
 // 总分 = 各维度得分之和（满分100）
+// 通过阈值：70分，关键维度（语言+语义）≥ 35分
 
 // 完整函数实现和诊断信号库见 scripts/json-drift-detector.js
 // Dify 代码节点可直接复制使用
@@ -737,13 +718,15 @@ function diagnoseEmptyOutput(text) {
 
 **诊断评分标准：**
 
+评分维度（配置见 `data/scoring-config.json` -> `thinking_pollution.dimensions`）：
+
 | 维度 | 分值 | 说明 |
 |------|------|------|
 | 空输出类型识别 | 25 | 正确识别 A/B/C/D 类型 |
 | 模型限制检查 | 25 | 检查模型特定 known issues |
 | 根因分析 | 25 | 根因分析准确性 |
 | 方案可行性 | 25 | 解决方案可操作性 |
-| **总分** | **100** | - |
+| **总分** | **100** | 通过阈值：70分 |
 
 ---
 
@@ -896,6 +879,9 @@ if (score >= 90) {
 - [ ] 是否提供了验证方法？
 
 ### 通过标准
+
+通过标准配置见 `data/scoring-config.json` -> `quality_gate`：
+
 - **Agent 专项**：总分 ≥ 70 分，实测层 ≥ 15 分（必须有证据）
 - **JSON 结构化输出**：总分 ≥ 70 分，语言漂移 + 语义漂移 ≥ 35 分
 - **Thinking 污染诊断**：总分 ≥ 70 分，空输出类型识别正确

@@ -1,0 +1,157 @@
+{
+  "version": "1.0",
+  "description": "dify-analyzer 诊断评分标准配置",
+  "agent_diagnosis": {
+    "name": "Agent 工具调用 6 层诊断",
+    "dimensions": {
+      "l1_config": {
+        "name": "配置层",
+        "weight": 15,
+        "check": "Agent 策略配置",
+        "full_score": "策略正确且模型支持",
+        "partial_score": "策略正确但模型支持存疑",
+        "zero_score": "无策略或策略错误"
+      },
+      "l2_binding": {
+        "name": "绑定层",
+        "weight": 10,
+        "check": "工具绑定状态",
+        "full_score": "绑定具体工具，schema 正确",
+        "partial_score": "显示工具箱但未绑定实例",
+        "zero_score": "未绑定工具"
+      },
+      "l3_params": {
+        "name": "参数层",
+        "weight": 15,
+        "check": "completion_params",
+        "full_score": "无 enable_thinking 或设置为 false",
+        "zero_score": "enable_thinking: true"
+      },
+      "l4_prompt": {
+        "name": "提示词层",
+        "weight": 10,
+        "check": "系统提示词要求",
+        "full_score": "明确强制要求使用工具",
+        "partial_score": "提及工具但未强制",
+        "zero_score": "未提及工具使用要求"
+      },
+      "l5_model": {
+        "name": "模型层",
+        "weight": 20,
+        "check": "模型兼容性",
+        "full_score": "GPT-4o, GPT-4, DeepSeek-V3 等稳定支持",
+        "partial_score": "Claude 3.5, 其他主流模型",
+        "zero_score": "Qwen3 系列（已知有系统性问题）"
+      },
+      "l6_architecture": {
+        "name": "架构层",
+        "weight": 10,
+        "check": "ChatFlow 限制",
+        "full_score": "独立 Agent 应用（无限制）",
+        "partial_score": "ChatFlow Agent 节点（有中间步骤不可见限制）",
+        "zero_score": "版本过旧，存在已知 bug"
+      },
+      "test_evidence": {
+        "name": "实测层",
+        "weight": 20,
+        "check": "日志证据",
+        "full_score": "有明确证据（如 enable_thinking: true）",
+        "partial_score": "有部分证据（如模型直接输出 SQL）",
+        "zero_score": "无日志证据，纯推测"
+      }
+    },
+    "max_score": 100,
+    "grade_scale": {
+      "excellent": { "min": 90, "max": 100, "label": "问题明确，解决方案清晰" },
+      "good": { "min": 70, "max": 89, "label": "问题基本明确，需进一步验证" },
+      "fair": { "min": 50, "max": 69, "label": "问题部分明确，需补充信息" },
+      "poor": { "min": 0, "max": 49, "label": "信息不足，需手动验证" }
+    }
+  },
+  "json_drift": {
+    "name": "JSON 结构化输出 4 维漂移检测",
+    "dimensions": {
+      "language_drift": {
+        "name": "语言漂移",
+        "max_score": 25,
+        "fail_condition": "检测到英文键名",
+        "fail_score": 0,
+        "note": "中→英切换"
+      },
+      "semantic_drift": {
+        "name": "语义漂移",
+        "max_score": 25,
+        "fail_condition": "检测到模型偏好键名",
+        "fail_score": 0,
+        "note": "status→current_state"
+      },
+      "abbreviation_drift": {
+        "name": "缩写漂移",
+        "max_score": 25,
+        "fail_condition": "检测到缩写键名",
+        "fail_score": 10,
+        "note": "自发简化"
+      },
+      "hierarchy_drift": {
+        "name": "层级漂移",
+        "max_score": 25,
+        "fail_condition": "嵌套层级偏差 > 1",
+        "fail_score": 5,
+        "note": "嵌套错乱"
+      }
+    },
+    "max_score": 100,
+    "pass_threshold": 70,
+    "critical_dimensions": ["language_drift", "semantic_drift"],
+    "critical_min": 35
+  },
+  "thinking_pollution": {
+    "name": "Thinking 模型输出污染诊断",
+    "dimensions": {
+      "empty_type_identification": {
+        "name": "空输出类型识别",
+        "score": 25
+      },
+      "model_limitation_check": {
+        "name": "模型限制检查",
+        "score": 25
+      },
+      "root_cause_analysis": {
+        "name": "根因分析",
+        "score": 25
+      },
+      "solution_feasibility": {
+        "name": "方案可行性",
+        "score": 25
+      }
+    },
+    "max_score": 100,
+    "pass_threshold": 70
+  },
+  "general_analysis": {
+    "name": "通用分析",
+    "pass_criteria": ["所有节点已扫描", "关键问题已识别"]
+  },
+  "quality_gate": {
+    "name": "质量验证通过标准",
+    "checks": {
+      "agent_specialist": {
+        "total_min": 70,
+        "test_evidence_min": 15,
+        "note": "必须有证据"
+      },
+      "json_drift": {
+        "total_min": 70,
+        "critical_dimensions_min": 35,
+        "note": "语言漂移 + 语义漂移"
+      },
+      "thinking_pollution": {
+        "total_min": 70,
+        "note": "空输出类型识别正确"
+      },
+      "actionable": {
+        "note": "所有建议均可直接执行或明确需要补充的信息"
+      }
+    }
+  }
+}

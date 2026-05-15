@@ -1,0 +1,106 @@
+{
+  "version": "1.0",
+  "description": "dify-analyzer 诊断模式触发关键词配置",
+  "modes": {
+    "agent_specialist": {
+      "name": "Agent 工具调用专项诊断",
+      "keywords": [
+        "agent",
+        "工具",
+        "调用",
+        "function calling",
+        "enable_thinking",
+        "数据处理为空",
+        "没进工具",
+        "tool",
+        "calling",
+        "not triggered"
+      ],
+      "priority": 2,
+      "references": ["references/agent-tool-troubleshooting.md"]
+    },
+    "json_structure_specialist": {
+      "name": "JSON 结构化输出一致性诊断",
+      "keywords": [
+        "键名漂移",
+        "中英文混用",
+        "platform_name",
+        "entity_name",
+        "indicator_comparison_details",
+        "字段名不一致",
+        "长输出格式错乱",
+        "json 键名",
+        "json 格式",
+        "输出格式异常",
+        "completion_tokens"
+      ],
+      "priority": 3,
+      "references": ["references/json-structure-troubleshooting.md"]
+    },
+    "prompt_logic_specialist": {
+      "name": "Prompt 逻辑一致性诊断",
+      "keywords": [
+        "提示词逻辑",
+        "空值处理",
+        "负数输出",
+        "边界情况",
+        "规则矛盾",
+        "示例不一致",
+        "条件分支",
+        "多项目场景"
+      ],
+      "priority": 4,
+      "references": ["references/diagnostic-framework.md"]
+    },
+    "thinking_pollution_specialist": {
+      "name": "Thinking/Reasoning 模型输出污染诊断",
+      "keywords": [
+        "enable_thinking",
+        "thinking",
+        "reasoning",
+        "think tag",
+        "<think>",
+        "</think>",
+        "json.parse",
+        "unexpected end of json",
+        "syntaxerror",
+        "思考模式",
+        "思考过程",
+        "推理过程",
+        "循环迭代失败",
+        "loop 失败"
+      ],
+      "priority": 5,
+      "references": ["references/thinking-model-troubleshooting.md"]
+    },
+    "general": {
+      "name": "通用日志分析",
+      "keywords": [],
+      "priority": 1,
+      "references": []
+    }
+  },
+  "construction_intercept": {
+    "name": "建设性需求早期拦截",
+    "keywords": [
+      "创建",
+      "新建",
+      "添加",
+      "删除",
+      "移除",
+      "重建",
+      "重写",
+      "create",
+      "add",
+      "delete",
+      "remove",
+      "rebuild",
+      "rewrite",
+      "帮我做一个",
+      "帮我写个",
+      "给我建个"
+    ],
+    "action": "warn",
+    "message": "dify-analyzer 的定位是诊断已有工作流的问题，不处理创建/删除/重建工作流"
+  }
+}

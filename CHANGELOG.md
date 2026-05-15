@@ -1,6 +1,57 @@
-﻿# 更新记录
+# 更新记录
 
 > 完整变更历史见本文件。SKILL.md 主文档中不再保留详细更新记录。
+
+---
+
+## v3.2（2026-05-15）
+
+### 重构：数据与指令分离
+
+基于 Agent Skills Spec "Keep SKILL.md under 500 lines" 的推荐，将结构化数据从 SKILL.md 正文中抽离到独立配置文件。
+
+### 新增
+
+1. **data/diagnosis-keywords.json**
+   - 5 种诊断模式的触发关键词集中配置
+   - 建设性需求拦截关键词
+   - 支持优先级排序和引用文档映射
+
+2. **data/scoring-config.json**
+   - Agent 6 层诊断评分配置（权重 / 等级 / 阈值）
+   - JSON 4 维漂移检测评分配置
+   - Thinking 污染诊断评分配置
+   - 质量验证通过标准统一配置
+
+3. **scripts/json-drift-detector.js（新增）**
+   - 从 SKILL.md Phase 2.3 提取 4 维漂移检测函数
+   - 包含：语言/语义/缩写/层级检测 + 诊断信号库
+   - Dify 代码节点可直接复制使用
+
+4. **scripts/thinking-pollution-diagnoser.js（新增）**
+   - 从 SKILL.md Phase 2.4 提取模型限制库和评分标准
+   - 配合 think-tag-cleaner.js 形成诊断-清理闭环
+
+### 更新
+
+5. **SKILL.md 瘦身**
+   - 提取 keywords 数组到 data/diagnosis-keywords.json（-30 行）
+   - 提取评分配置到 data/scoring-config.json（-20 行）
+   - 提取漂移检测函数到 scripts/json-drift-detector.js（-65 行）
+   - 提取 thinking 诊断数据到 scripts/thinking-pollution-diagnoser.js（-20 行）
+   - 总计减少 ~135 行（从 1399 行 → 1160 行）
+
+6. **README.md 文件结构**
+   - 新增 `data/` 目录说明
+   - 新增 `json-drift-detector.js` 和 `thinking-pollution-diagnoser.js` 说明
+   - 更新 scripts 安全使用指南（4 个条目）
+   - 更新使用原则第 4 条表述
+
+### 修复
+
+7. **scripts/json-repair-snippets.js**
+   - 修复 `extractFirstJson()` 中正则表达式语法错误（Node.js 24 兼容）
+   - 将正则字面量改为 `RegExp` 构造函数避免转义歧义
 
 ---
 
