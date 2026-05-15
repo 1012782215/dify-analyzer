@@ -1,4 +1,4 @@
-﻿# Dify Log Analyzer Skill
+# Dify Log Analyzer Skill
 
 > 系统化诊断 Dify 工作流执行问题，支持基于日志的精确诊断和基于描述的经验诊断。
 
@@ -170,11 +170,19 @@ dify-analyzer/
 │   │                                       # 用途：清理 Qwen3/DeepSeek think 标签污染
 │   │                                       # 方案1: 基础清理（生产环境，失败返回 error 不 throw）
 │   │                                       # 方案2: 调试版（开发环境，返回 4 种空输出类型诊断）
-│   └── json-repair-snippets.js             # JSON 修复代码片段（6种修复+组合函数）
-│                                             # ⚠️ 纯文本处理，无网络访问，低风险
-│                                             # 用途：修复常见 JSON 格式异常（分号/逗号/单引号等）
-│                                             # 支持 safeMode（只做清理不做正则修复）
-│                                             # 支持自定义键名映射表（参数化，不硬编码）
+│   ├── json-drift-detector.js              # JSON 4维漂移检测器
+│   │                                       # 用途：检测 LLM 输出 JSON 键名漂移（语言/语义/缩写/层级）
+│   │                                       # 输出：各维度评分 + 诊断信号 + 总分
+│   │                                       # 配合 json-repair-snippets.js 形成"检测→修复"闭环
+│   ├── json-repair-snippets.js             # JSON 修复代码片段（6种修复+组合函数）
+│   │                                       # ⚠️ 纯文本处理，无网络访问，低风险
+│   │                                       # 用途：修复常见 JSON 格式异常（分号/逗号/单引号等）
+│   │                                       # 支持 safeMode（只做清理不做正则修复）
+│   │                                       # 支持自定义键名映射表（参数化，不硬编码）
+│   └── thinking-pollution-diagnoser.js     # Thinking 模型污染诊断器
+│                                             # 用途：诊断 thinking 模型兼容性（Qwen3/DeepSeek）
+│                                             # 输出：模型限制库 + 诊断评分标准 + 空输出类型定义
+│                                             # 配合 think-tag-cleaner.js 的 mainDebug() 使用
 ├── examples/
 │   ├── README.md                         # 案例索引与导航
 │   ├── agent-empty-data-processing/      # 案例1：Agent空数据处理
@@ -203,14 +211,16 @@ dify-analyzer/
 | 脚本 | 风险等级 | 理由 |
 |------|---------|------|
 | `think-tag-cleaner.js` | 🟢 低 | 纯文本处理，无网络访问，无外部依赖 |
+| `json-drift-detector.js` | 🟢 低 | 纯文本分析，只读不修改，无外部依赖 |
 | `json-repair-snippets.js` | 🟢 低 | 纯文本处理，支持 safeMode，参数化配置 |
+| `thinking-pollution-diagnoser.js` | 🟢 低 | 纯配置数据返回，无网络访问，无外部依赖 |
 
 **🔒 使用原则**
 
 1. **生产环境**：启用 `safeMode=true`，只做清理不做正则修复
 2. **测试验证**：任何修复脚本先在测试工作流验证后再用于生产
 3. **失败处理**：脚本返回 `error` 字段而非抛出异常，避免工作流中断
-4. **不隐藏逻辑**：核心诊断逻辑保留在 SKILL.md 中，scripts 只做机械性处理
+4. **逻辑分层**：SKILL.md 保留诊断框架和决策逻辑，scripts 存放可复用的检测/诊断函数实现
 
 ---
 
