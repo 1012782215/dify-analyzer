@@ -92,11 +92,15 @@ const inputType = {
 };
 
 // 建设性需求早期拦截
-// 关键词配置见 data/diagnosis-keywords.json -> construction_intercept
+// 完整关键词列表见 data/diagnosis-keywords.json -> construction_intercept
 function checkConstructionNeed(input) {
   const lower = input.toLowerCase();
-  const keywords = loadKeywordsConfig('construction_intercept');
-  return keywords.some(kw => lower.includes(kw));
+  const constructionKeywords = [
+    '创建', '新建', '添加', '删除', '移除', '重建', '重写',
+    'create', 'add', 'delete', 'remove', 'rebuild', 'rewrite',
+    '帮我做一个', '帮我写个', '给我建个'
+  ];
+  return constructionKeywords.some(kw => lower.includes(kw));
 }
 
 // 注意：当用户同时提供多种输入时，按优先级 A > E > B > C > D 处理
@@ -269,15 +273,38 @@ const analysisMode = {
 
 function determineAnalysisType(input) {
   const lower = input.toLowerCase();
-  const config = loadKeywordsConfig('modes');
   
-  // 按优先级遍历各诊断模式的关键词（配置见 data/diagnosis-keywords.json）
-  for (const [mode, data] of Object.entries(config)) {
-    if (mode === 'general') continue;
-    if (data.keywords.some(kw => lower.includes(kw))) {
-      return mode;
-    }
-  }
+  // 各模式关键词配置见 data/diagnosis-keywords.json
+  // Agent 专项
+  const agentKeywords = [
+    'agent', '工具', '调用', 'function calling',
+    'enable_thinking', '数据处理为空', '没进工具',
+    'tool', 'calling', 'not triggered'
+  ];
+  if (agentKeywords.some(kw => lower.includes(kw))) return 'agent_specialist';
+  
+  // JSON 结构化输出诊断
+  const jsonDriftKeywords = [
+    '键名漂移', '中英文混用', 'platform_name', 'entity_name',
+    'indicator_comparison_details', '字段名不一致', '长输出格式错乱',
+    'json 键名', 'json 格式', '输出格式异常', 'completion_tokens'
+  ];
+  if (jsonDriftKeywords.some(kw => lower.includes(kw))) return 'json_structure_specialist';
+  
+  // Prompt 逻辑诊断
+  const promptLogicKeywords = [
+    '提示词逻辑', '空值处理', '负数输出', '边界情况',
+    '规则矛盾', '示例不一致', '条件分支', '多项目场景'
+  ];
+  if (promptLogicKeywords.some(kw => lower.includes(kw))) return 'prompt_logic_specialist';
+  
+  // Thinking 模型输出污染诊断
+  const thinkingPollutionKeywords = [
+    'enable_thinking', 'thinking', 'reasoning', 'think tag', '<think>', '</think>',
+    'json.parse', 'unexpected end of json', 'syntaxerror', '思考模式',
+    '思考过程', '推理过程', '循环迭代失败', 'loop 失败'
+  ];
+  if (thinkingPollutionKeywords.some(kw => lower.includes(kw))) return 'thinking_pollution_specialist';
   
   return 'general';
 }
