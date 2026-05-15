@@ -1,4 +1,4 @@
-﻿---
+---
 name: dify-analyzer
 description: |
   系统化诊断 Dify 工作流问题，支持基于日志的精确诊断和基于描述的经验诊断。
@@ -618,88 +618,39 @@ if (node.type === 'llm' &&
 ```
 
 **4 维漂移检测：**
+
+核心检测逻辑（完整实现见 `scripts/json-drift-detector.js`）：
+
 ```javascript
 const driftDiagnosis = {
   language_drift: checkLanguageDrift(node),      // 语言漂移（中→英）
   semantic_drift: checkSemanticDrift(node),      // 语义漂移（status→current_state）
-  abbreviation_drift: checkAbbreviation(node),   // 缩写漂移（entity_name→sup_name）
+  abbreviation_drift: checkAbbreviationDrift(node),   // 缩写漂移（entity_name→sup_name）
   hierarchy_drift: checkHierarchyDrift(node)     // 层级漂移（嵌套错乱）
 };
 
-function checkLanguageDrift(node) {
-  const outputKeys = extractAllKeys(node.output);
-  const chineseKeys = outputKeys.filter(k => /[\u4e00-\u9fff]/.test(k));
-  const englishKeys = outputKeys.filter(k => /^[a-zA-Z_]/.test(k));
-  
-  return {
-    score: englishKeys.length > 0 ? 0 : 25,
-    issue: englishKeys.length > 0 ? 
-      `检测到 ${englishKeys.length} 个英文键名：${englishKeys.join(', ')}` : null,
-    evidence: englishKeys
-  };
-}
+// 各维度评分：
+// - language_drift: 25分（检测到英文键名 → 0分）
+// - semantic_drift: 25分（检测到模型偏好键名 → 0分）
+// - abbreviation_drift: 25分（检测到缩写 → 10分）
+// - hierarchy_drift: 25分（层级偏差>1 → 5分）
+// 总分 = 各维度得分之和（满分100）
 
-function checkSemanticDrift(node) {
-  const modelPreferredKeys = ['name', 'status', 'id', 'type', 'result', 'data', 'content'];
-  const outputKeys = extractAllKeys(node.output);
-  const hits = outputKeys.filter(k => modelPreferredKeys.includes(k.toLowerCase()));
-  
-  return {
-    score: hits.length > 0 ? 0 : 25,
-    issue: hits.length > 0 ?
-      `检测到模型偏好键名：${hits.join(', ')}（与用户定义 Schema 不符）` : null,
-    evidence: hits
-  };
-}
-
-function checkAbbreviationDrift(node) {
-  const outputKeys = extractAllKeys(node.output);
-  const shortKeys = outputKeys.filter(k => k.length < 10 && /^[a-zA-Z_]+$/.test(k));
-  
-  return {
-    score: shortKeys.length > 0 ? 10 : 25,
-    issue: shortKeys.length > 0 ?
-      `检测到疑似缩写键名：${shortKeys.join(', ')}` : null,
-    evidence: shortKeys
-  };
-}
-
-function checkHierarchyDrift(node) {
-  const expectedDepth = getExpectedDepth(node.config?.schema);
-  const actualDepth = getActualDepth(node.output);
-  
-  return {
-    score: Math.abs(expectedDepth - actualDepth) > 1 ? 5 : 25,
-    issue: Math.abs(expectedDepth - actualDepth) > 1 ?
-      `嵌套层级异常：预期 ${expectedDepth} 层，实际 ${actualDepth} 层` : null,
-    evidence: { expected: expectedDepth, actual: actualDepth }
-  };
-}
-
-const totalScore = Object.values(driftDiagnosis).reduce((sum, d) => sum + d.score, 0);
+// 完整函数实现和诊断信号库见 scripts/json-drift-detector.js
+// Dify 代码节点可直接复制使用
 ```
 
 **诊断信号库：**
-```javascript
-const driftSignals = {
-  // 信号 1：Token 长度预警
-  tokenThreshold: node.tokens > 3000,
-  
-  // 信号 2：键名语言不一致率
-  chineseKeyRatio: chineseKeys / totalKeys,
-  anomaly: chineseKeyRatio < 0.8 && totalKeys > 10,
-  
-  // 信号 3：出现模型"偏好键名"
-  hitModelPreferred: modelPreferredKeys.some(k => outputKeys.includes(k)),
-  
-  // 信号 4：同一对象内键名风格不一致
-  mixedNaming: hasBothChineseAndEnglishKeys(outputKeys),
-  
-  // 信号 5：Schema 合规性（如果配置了 JSON Schema）
-  schemaMismatch: node.config?.response_format?.type === 'json_schema' ? 
-    validateSchema(node.output, node.config.response_format.schema).errors : null
-};
-```
+
+关键信号（完整实现见 `scripts/json-drift-detector.js`）：
+
+| 信号 | 判断条件 | 阈值 |
+|------|---------|------|
+| Token 长度预警 | `node.tokens > 3000` | 3000 |
+| 键名语言不一致 | `中文键名比例 < 80%` 且总键名 > 10 | 80% |
+| 模型偏好键名命中 | `name/status/id/type/result/data/content` 出现 | - |
+| 混合命名风格 | 同一对象内中英文键名并存 | - |
+| Schema 合规性 | 配置了 json_schema 时校验 | - |
 
 **修复策略分级：**
 ```yaml
@@ -738,160 +689,61 @@ if ((node.type === 'llm' || node.type === 'code') &&
 }
 ```
 
-**4 种空输出类型检测：**
-```javascript
-const emptyOutputDiagnosis = {
-  // 类型 A: 完全空输出（模型什么都没返回）
-  completely_empty: {
-    check: (text) => !text || text.trim() === '',
-    causes: ['模型崩溃', 'API 超时', 'Stream 解析失败', 'max_tokens=0'],
-    solution: '检查模型状态、网络连接、max_tokens 配置'
-  },
-  
-  // 类型 B: Think 标签后空输出（有 <think> 但 </think> 后无内容）
-  think_then_empty: {
-    check: (text) => {
-      if (!text || !text.includes('</think>')) return false;
-      const afterThink = text.split('</think>').pop();
-      return !afterThink || afterThink.trim() === '';
-    },
-    causes: [
-      '模型 thinking 后未生成正式回答',
-      'enable_thinking=True + Structured Output 冲突',
-      'Qwen3 enable_thinking=False 时 Schema 约束失效',
-      'max_tokens 被 thinking 过程耗尽'
-    ],
-    solution: '保持 enable_thinking=True + Prompt 约束 + 代码清理 think 标签'
-  },
-  
-  // 类型 C: JSON 被截断（有开头无结尾）
-  json_truncated: {
-    check: (text) => {
-      if (!text) return false;
-      const trimmed = text.trim();
-      return trimmed.startsWith('{') && !trimmed.endsWith('}');
-    },
-    causes: ['max_tokens 不足', '输出长度超过限制', '模型生成被截断'],
-    solution: '增加 max_tokens（建议 ≥ 8192）'
-  },
-  
-  // 类型 D: JSON 被包裹在 think 标签内部
-  json_inside_think: {
-    check: (text) => {
-      if (!text || !text.includes('<think>')) return false;
-      const thinkMatch = text.match(/<think>[\s\S]*?<\/think>/);
-      if (!thinkMatch) return false;
-      return thinkMatch[0].includes('{') && thinkMatch[0].includes('}');
-    },
-    causes: ['模型把正式回答放进了 thinking 过程', 'reasoning_format=tagged 时解析错误'],
-    solution: '使用 reasoning_format=separated 或代码提取 think 标签内的 JSON'
-  }
-};
-```
+**4 种空输出类型：**
 
-**快速判断流程（执行示例）：**
+| 类型 | 标识 | 检测方法 | 常见原因 | 解决方案 |
+|------|------|---------|---------|---------|
+| A | 完全空输出 | `!text \|\| text.trim() === ''` | 模型崩溃、API 超时、max_tokens=0 | 检查模型状态和连接 |
+| B | Think 后空输出 | `</think>` 后无内容 | enable_thinking 冲突、max_tokens 耗尽 | 保持 enable_thinking=True + 代码清理 |
+| C | JSON 截断 | 以 `{` 开头但非 `}` 结尾 | max_tokens 不足 | 增加 max_tokens ≥ 8192 |
+| D | JSON 在 think 内 | think 标签内包含 `{}` | 模型把回答放进 thinking | 使用 separated 格式或提取 JSON |
+
+**快速判断流程：**
+
+检测优先级：B → D → C → A（B 最常见，优先检查）
 
 ```javascript
-// Step 1: 获取 LLM 节点原始输出
-const llmOutput = node.inputs?.text || node.output || '';
+// 完整实现见 scripts/think-tag-cleaner.js（mainDebug 函数）
+// 该脚本同时提供清理功能（main 函数）和诊断功能（mainDebug 函数）
 
-// Step 2: 按优先级检测空输出类型（B 最常见，优先检查）
+// 简化版逻辑：
 function diagnoseEmptyOutput(text) {
-  // 优先级 1: 类型 B（Think 后空输出）- 最常见
-  if (text.includes('</think>')) {
-    const afterThink = text.split('</think>').pop();
-    if (!afterThink || afterThink.trim() === '') {
-      return {
-        type: 'B_THINK_THEN_EMPTY',
-        confidence: 'high',
-        evidence: `</think> 后内容长度: ${afterThink ? afterThink.length : 0}`,
-        nextStep: '检查 enable_thinking 配置和 max_tokens'
-      };
-    }
-  }
-  
+  // 优先级 1: 类型 B（Think 后空输出）
+  if (text.includes('</think>')) { /* ... */ }
+
   // 优先级 2: 类型 D（JSON 在 think 内）
-  if (text.includes('<think>')) {
-    const thinkMatch = text.match(/<think>[\s\S]*?<\/think>/);
-    if (thinkMatch && thinkMatch[0].includes('{')) {
-      return {
-        type: 'D_JSON_INSIDE_THINK',
-        confidence: 'high',
-        evidence: 'think 标签内包含 JSON 字符',
-        nextStep: '使用 reasoning_format=separated 或提取 think 内 JSON'
-      };
-    }
-  }
-  
+  if (text.includes('<think>')) { /* ... */ }
+
   // 优先级 3: 类型 C（JSON 截断）
   const trimmed = text.trim();
-  if (trimmed.startsWith('{') && !trimmed.endsWith('}')) {
-    return {
-      type: 'C_JSON_TRUNCATED',
-      confidence: 'high',
-      evidence: `开头: "{" 结尾: "${trimmed.slice(-10)}"`,
-      nextStep: '增加 max_tokens'
-    };
-  }
-  
+  if (trimmed.startsWith('{') && !trimmed.endsWith('}')) { /* ... */ }
+
   // 优先级 4: 类型 A（完全空输出）
-  if (!text || text.trim() === '') {
-    return {
-      type: 'A_COMPLETELY_EMPTY',
-      confidence: 'high',
-      evidence: '输出为空字符串或 null',
-      nextStep: '检查模型状态和 API 连接'
-    };
-  }
-  
-  return {
-    type: 'UNKNOWN',
-    confidence: 'low',
-    evidence: `输出长度: ${text.length}, 包含 think: ${text.includes('<think>')}`,
-    nextStep: '人工检查原始输出'
-  };
+  if (!text || text.trim() === '') { /* ... */ }
 }
-
-// Step 3: 执行诊断
-const result = diagnoseEmptyOutput(llmOutput);
-
-// Step 4: 根据类型输出诊断报告
-console.log(`空输出类型: ${result.type}`);
-console.log(`置信度: ${result.confidence}`);
-console.log(`证据: ${result.evidence}`);
-console.log(`下一步: ${result.nextStep}`);
 ```
 
 **模型特定限制检查：**
-```javascript
-const modelLimitations = {
-  'qwen3': {
-    'enable_thinking=False + Structured Output': '❌ 不兼容（SGLang Grammar Backend 依赖 <think> 触发约束解码）',
-    'enable_thinking=False 后仍然输出 thinking': '⚠️ 插件 0.0.28-0.0.31 已知回归',
-    'vLLM --reasoning-parser qwen3': '⚠️ reasoning 字段不被 Dify 解析，建议使用原生 <think> 标签',
-    '推荐方案': 'enable_thinking=True + Prompt 约束 + 代码清理 think 标签'
-  },
-  'deepseek-r1': {
-    'Agent 模式': '⚠️ thinking 过程嵌套，timer 不停止',
-    'function calling': '⚠️ V3.2 需要 reasoning_content 字段',
-    '推荐方案': '避免在 Agent 节点使用，或升级 Dify 版本'
-  },
-  'deepseek-v3': {
-    'enable_thinking=True': '⚠️ 可能只返回 reasoning_content，final content 为空',
-    '推荐方案': '检查 max_tokens 是否充足（thinking + 正式回答共享配额）'
-  }
-};
-```
+
+模型兼容性限制库（完整数据见 `scripts/thinking-pollution-diagnoser.js`）：
+
+| 模型 | 已知限制 | 推荐方案 |
+|------|---------|---------|
+| **Qwen3** | enable_thinking=False + Structured Output 不兼容 | enable_thinking=True + Prompt 约束 + 代码清理 |
+| **DeepSeek-R1** | Agent 模式 thinking 嵌套，timer 不停止 | 避免在 Agent 节点使用 |
+| **DeepSeek-V3** | enable_thinking=True 时 final content 可能为空 | 检查 max_tokens 是否充足 |
+
+> 使用 `checkModelLimitations(modelName)` 查询具体模型限制（详见 scripts/thinking-pollution-diagnoser.js）
 
 **诊断评分标准：**
-```javascript
-const thinkingDiagnosisScore = {
-  empty_type_identification: 25,    // 正确识别空输出类型
-  model_limitation_check: 25,       // 检查模型特定限制
-  root_cause_analysis: 25,          // 根因分析准确性
-  solution_feasibility: 25          // 方案可行性
-};
-```
+
+| 维度 | 分值 | 说明 |
+|------|------|------|
+| 空输出类型识别 | 25 | 正确识别 A/B/C/D 类型 |
+| 模型限制检查 | 25 | 检查模型特定 known issues |
+| 根因分析 | 25 | 根因分析准确性 |
+| 方案可行性 | 25 | 解决方案可操作性 |
+| **总分** | **100** | - |
 
 ---
 

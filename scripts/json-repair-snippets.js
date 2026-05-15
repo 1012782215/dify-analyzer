@@ -62,7 +62,9 @@ function removeComments(jsonStr) {
  * 建议：提取后仍然需要 JSON.parse 验证
  */
 function extractFirstJson(text) {
-  const match = text.match(/\{[\s\S]*?\}(?=\s*$|\s*[,\]})/);
+  // 使用 RegExp 构造函数避免字面量中的转义歧义
+  const pattern = new RegExp('\\{[\\s\\S]*?\\}(?=\\s*$|\\s*[,\\]})');
+  const match = text.match(pattern);
   return match ? match[0] : null;
 }
 
